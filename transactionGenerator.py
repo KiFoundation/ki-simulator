@@ -57,6 +57,8 @@ inflation = 100000
 base_reward = 5.5
 
 data_file = 'data/bitcoin/n-transactions-all.csv'
+
+
 # data_file = 'data/ethereum/export-TxGrowth.csv'
 
 def generate_blocks():
@@ -286,7 +288,7 @@ def distribute_validators(dict_of_validators):
 def forecasting(df_blocks_):
     df_blocks_['date'] = pd.to_datetime(df_blocks_['date'])
     df_blocks_ = df_blocks_.set_index('date')
-    df_blocks_ = df_blocks_['data'].resample('MS').mean()
+    df_blocks_ = df_blocks_['data'].resample('W').mean()
     print(len(df_blocks_))
 
     decomposition = sm.tsa.seasonal_decompose(df_blocks_, model='multiplicative')
@@ -320,49 +322,57 @@ def parameter_selection(df_blocks_):
 
 
 def arima(df_blocks_, param_select):
+
     # Select parameters
     a = parameter_selection(df_blocks_)
 
-    mod = sm.tsa.statespace.SARIMAX(df_blocks_, order=a[0], seasonal_order=a[1],
-                                    enforce_stationarity=False, enforce_invertibility=False)
-    # Fit the selection model
-    results = mod.fit()
+    pred_ci = pd.DataFrame()
+    pred_uc_m = pd.DataFrame()
+    mse =[]
+    for i in range(1, 9, 1):
+        mod = sm.tsa.statespace.SARIMAX(df_blocks_[:'201' + str(i) + '-01'], order=a[0],
+                                        seasonal_order=a[1],
+                                        enforce_stationarity=False, enforce_invertibility=False)
+        # Fit the selection model
+        results = mod.fit()
 
-    # Plot diagnostics
-    results.plot_diagnostics(figsize=(16, 8))
+        # Plot diagnostics
+        results.plot_diagnostics(figsize=(16, 8))
 
-    # Get and plot predictions staring a given date
-    pred = results.get_prediction(start=pd.to_datetime('2015-01-01'), dynamic=False)
-    pred_ci = pred.conf_int()
+        # Get and plot predictions staring a given date
+        pred = results.get_prediction(start=pd.to_datetime(df_blocks_['201' + str(i) + '-02':].index.values[0]), dynamic=False)
 
-    df_ = pd.DataFrame({'date': df_blocks_['2014':].index.values,
-                        'data': [df_blocks_['2014':][i] for i in df_blocks_['2014':].index.values]})
+        # Compute MSE and RMSE error
+        y_forecasted = pred.predicted_mean
+        y_truth = df_blocks_['201' + str(i) + '-06':]
+        #
+        mse.append(((y_forecasted - y_truth) ** 2).mean())
+        # print('The Root Mean Squared Error of our forecasts is {}'.format(round(np.sqrt(mse), 2)))
+        #
+        pred_uc = results.get_forecast(steps=50)
+        pred_ci = pd.concat([pred_ci, pred_uc.conf_int()])
+        pred_uc_m = pd.concat([pred_uc_m, pred_uc.predicted_mean])
 
-    ax = df_.set_index('date').plot(label='observed')
+    print(mse)
+    pred_uc_m.columns = ['Forecast']
+    print(pred_ci)
+    print(pred_uc_m)
+    df_ = pd.DataFrame({'date': df_blocks_['2011':'2018'].index.values,
+                        'data': [df_blocks_['2011':'2018'][i] for i in df_blocks_['2011':'2018'].index.values]})
 
-    pred.predicted_mean.plot(ax=ax, label='One-step ahead Forecast', alpha=.7, figsize=(14, 7))
-    ax.fill_between(pred_ci.index, pred_ci.iloc[:, 0], pred_ci.iloc[:, 1], color='k', alpha=.2)
-    ax.set_xlabel('Date')
-    plt.legend()
+    ax = df_.set_index('date').plot()
 
-    # Compute MSE and RMSE error
-    y_forecasted = pred.predicted_mean
-    y_truth = df_blocks_['2017-01-01':]
-    mse = ((y_forecasted - y_truth) ** 2).mean()
-    print('The Root Mean Squared Error of our forecasts is {}'.format(round(np.sqrt(mse), 2)))
-
-    pred_uc = results.get_forecast(steps=100)
-    pred_ci = pred_uc.conf_int()
-    ax = df_blocks_.plot(label='observed', figsize=(14, 7))
-    pred_uc.predicted_mean.plot(ax=ax, label='Forecast')
+    pred_uc_m.plot(ax=ax, label='Forecast')
     ax.fill_between(pred_ci.index,
                     pred_ci.iloc[:, 0],
-                    pred_ci.iloc[:, 1], color='k', alpha=.25)
+                    pred_ci.iloc[:, 1], color='k', alpha=.5)
+
     ax.set_xlabel('Date')
-    ax.set_ylabel('Furniture Sales')
+    ax.set_ylabel('Transaction')
     plt.legend()
 
     plt.show()
+
 
 res = generate_blocks()
 # compute_reward_block(res)
