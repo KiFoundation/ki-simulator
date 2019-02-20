@@ -1,16 +1,17 @@
+import os
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-# Reward config
-inflation = 100000
-base_reward = 5.5
+from dotenv import load_dotenv
 
-# Epochs config
-# epochs = {1: 1., 2: 1., 3: 1., 4: 1.}
-# epochs = {1: 0., 2: 0.3, 3: 0.7, 4: 0.9}
-# thresholds = {1: 0.8, 2: 0.2, 3: 0.1}
+# Load dotenv file
+load_dotenv()
+
+# Reward config
+inflation = os.getenv("inflation")
+base_reward = os.getenv("base_reward")
 
 epochs = {1: 0., 2: 1.}
 thresholds = {1: 0.5, 2: -10, 3: -10}

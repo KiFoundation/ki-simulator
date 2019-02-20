@@ -1,21 +1,22 @@
+import os
 import sys
 import numpy as np
 import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-
-import os
 from dotenv import load_dotenv
-load_dotenv()
-
-
 from datetime import timedelta
 from datetime import datetime
 from pandas.plotting import register_matplotlib_converters
 
 register_matplotlib_converters()
-np.random.seed = 1
+
+# Load dotenv file
+load_dotenv()
+
+# Set random stat
+np.random.seed = os.getenv("random_seed")
 
 # Data generator config
 start_date = os.getenv("start_date")
@@ -42,19 +43,19 @@ a = os.getenv("a")
 b = os.getenv("b")
 
 # Plotting config
-plot_tx_per_hour = os.getenv("plot_tx_per_hour")
-plot_tx_per_blocks = os.getenv("plot_tx_per_blocks")
-plot_epoch_per_blocks = os.getenv("plot_epoch_per_blocks")
+plot_tx_per_time_unit = os.getenv("plot_tx_per_time_unit")
+plot_tx_per_block = os.getenv("plot_tx_per_block")
+plot_epoch_per_block = os.getenv("plot_epoch_per_block")
 
 # Logging config (in-console)
-log_tx_per_hour = os.getenv("log_tx_per_hour")
-log_tx_per_blocks = os.getenv("log_tx_per_blocks")
+log_tx_per_time_unit = os.getenv("log_tx_per_time_unit")
+log_tx_per_block = os.getenv("log_tx_per_block")
 
 # Epochs config
 # epochs = {1: 1., 2: 1., 3: 1., 4: 1.}
 # epochs = {1: 0., 2: 0.3, 3: 0.7, 4: 0.9}
 # thresholds = {1: 0.8, 2: 0.2, 3: 0.1}
-
+#  TODO : ADD EPOCH CONFIG TO THE .ENV FILE
 epochs = {1: 0., 2: 1.}
 thresholds = {1: 0.5, 2: -10, 3: -10}
 
@@ -62,8 +63,8 @@ thresholds = {1: 0.5, 2: -10, 3: -10}
 data_ = "btc"
 
 
-def generate_blocks():
-    print('Generating blocks')
+def generate_transactions_per_time_unit():
+    print('Generating transactions per time unit : ', sampling_freq)
 
     # Trend from data
     if trend == 'data':
@@ -97,12 +98,24 @@ def generate_blocks():
         df = df.round({'data': 3})
         df['data'] *= tx_ampl_param
 
+    if log_tx_per_time_unit != 0:
+        log_transactions(df, log_tx_per_time_unit)
+
+    if plot_tx_per_time_unit :
+        plot_transactions(df, "tptu")
+
+    return df
+
+
+def generate_blocks(transactions_per_time_unit):
+    print('Generating blocks')
+
     # Split the time units to block : 1 block every 8 seconds
-    df_blocks = pd.DataFrame([0 for i in range(len(df) * block_per_time_unit)], columns=['tx'])
+    df_blocks = pd.DataFrame([0 for i in range(len(transactions_per_time_unit) * block_per_time_unit)], columns=['tx'])
 
     # Randomly split the tx/h of each timestamp over the 450 hourly blocks : use multinomial distribution (fixed sum)
     k = 0
-    for index, row in df.iterrows():
+    for index, row in transactions_per_time_unit.iterrows():
 
         txs = np.random.multinomial(row['data'], [1 / float(block_per_time_unit)] * block_per_time_unit, size=1)
         for tx in txs[0]:
@@ -111,6 +124,18 @@ def generate_blocks():
 
     print("transactions distributed over blocks")
     sys.stdout.flush()
+
+    if log_tx_per_block != 0:
+        log_transactions(df_blocks, log_tx_per_block)
+
+    if plot_tx_per_block :
+        plot_transactions(df_blocks, "tpb")
+
+    return df_blocks
+
+
+def set_epochs(transactions_per_block):
+    df_blocks = transactions_per_block.copy()
 
     # Set epochs
     df_blocks['epoch'] = [-1 for i in range(len(df_blocks))]
@@ -136,36 +161,35 @@ def generate_blocks():
     print("transaction epochs set")
     sys.stdout.flush()
 
+    if plot_epoch_per_block :
+        plot_transactions(df_blocks, "epoch")
+
+    return df_blocks
+
+
+def log_transactions(df, lines):
     # Logging
-    if log_tx_per_blocks > 0:
-        print(df_blocks.head(log_tx_per_blocks))
+    if lines > 0:
+        print(df.head(lines))
 
-    if log_tx_per_blocks < 0:
-        print(df_blocks.tail(abs(log_tx_per_blocks)))
+    if lines < 0:
+        print(df.tail(abs(lines)))
 
-    if log_tx_per_hour > 0:
-        print(df.head(log_tx_per_hour))
 
-    if log_tx_per_hour < 0:
-        print(df.tail(abs(log_tx_per_hour)))
-
+def plot_transactions(df, what):
     # Plotting
     sns.set(style="ticks")
 
-    if plot_epoch_per_blocks:
-        sns.scatterplot(df_blocks.index.values, df_blocks['epoch'])
+    if what == "epoch":
+        sns.scatterplot(df.index.values, df['epoch'])
 
-    if plot_tx_per_hour:
-        # plt.xticks(rotation=90)
+    if what == "tptu":
         sns.lineplot(df.index.values, df['data'])
 
-    if plot_tx_per_blocks:
-        sns.lineplot(df_blocks.index.values, df_blocks['tx'])
+    if what == "tpb" :
+        sns.lineplot(df.index.values, df['tx'])
 
-    if plot_tx_per_hour or plot_tx_per_blocks or plot_epoch_per_blocks:
-        plt.show()
-
-    return df_blocks
+    plt.show()
 
 
 def generate_validators():
@@ -175,11 +199,3 @@ def generate_validators():
 def distribute_validators(dict_of_validators):
     return
 
-
-# if __name__ == '__main__':
-#     print('Carbonara is the most awesome pizza.')
-
-    # res = generate_blocks()
-    # compute_reward_block(res)
-    # compute_reward_transaction(res)
-    # compute_reward_hybrid(res, 0.1)
