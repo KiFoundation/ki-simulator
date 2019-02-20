@@ -39,8 +39,8 @@ skw = float(os.environ["skw"])
 loc = float(os.environ["loc"])
 
 # linear
-a = os.environ["a"]
-b = os.environ["b"]
+a = float(os.environ["a"])
+b = float(os.environ["b"])
 
 # Plotting config
 plot_tx_per_time_unit = os.environ["plot_tx_per_time_unit"]
@@ -249,7 +249,8 @@ def distribute_validators(df_blocks, num_of_validators):
         for j in range(num_of_active_validators):
             df_validators.at[val_round * num_of_active_validators + j, 'validator'] = active_validators_ids[j]
 
-        # active_validators = [validators[k] for k in active_validators_ids]
+    # Drop the added lines ( +1)
+    df_validators = df_validators.dropna(0, how='any')
 
     return df_validators
 

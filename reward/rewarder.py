@@ -29,9 +29,9 @@ def compute_reward_transaction(df_blocks_):
 
         df_blocks_rewards.iloc[index] = [row['tx'], row['epoch'], row['validator'], r_hat]
 
-    print(sum(df_blocks_rewards['reward']))
+    print("The total sum of payed reward is ", sum(df_blocks_rewards['reward']))
 
-    return
+    return df_blocks_rewards
 
 
 def compute_reward_block(df_blocks_):
@@ -46,7 +46,7 @@ def compute_reward_block(df_blocks_):
         # print(inflation - payed_rewards, '\t', len(df_blocks_rewards) - index, '\t',
         #       (inflation - payed_rewards) / (len(df_blocks_rewards) - index), '\t', base_reward * (1 - epochs[row['epoch']]))
 
-    print(sum(df_blocks_rewards['reward']))
+    print("The total sum of payed reward is ", sum(df_blocks_rewards['reward']))
 
     return
 
@@ -76,7 +76,7 @@ def compute_reward_hybrid(df_blocks_, static_split_):
         r_hat = static_reward + dynamic_reward
         df_blocks_rewards.iloc[index] = [row['tx'], r_hat, row['epoch']]
 
-    print(sum(df_blocks_rewards['reward']))
+    print("The total sum of payed reward is ", sum(df_blocks_rewards['reward']))
 
     # compute mean reward per round
     mean_rewards_per_round = []
