@@ -1,5 +1,6 @@
 import os
 import sys
+import random
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -19,18 +20,17 @@ load_dotenv()
 np.random.seed = os.environ["random_seed"]
 
 # Data generator config
-start_date = os.environ["start_date"]
-number_of_days = int(os.environ["number_of_days"])
-end_date = datetime.strptime(start_date, "%d/%m/%Y") + timedelta(days=number_of_days)
-time_per_block = int(os.environ["time_per_block"])
-sampling_freq = os.environ["sampling_freq"]
-block_per_time_unit = round(3600 / time_per_block) if sampling_freq == 'H' else round(86400 / time_per_block)
-tx_ampl_param = int(os.environ["tx_ampl_param"])
-# trend = 'arctan'
-# trend = 'linear'
-
-# Trend [ "data" | "gen" ]
+data_source = os.environ["data_source"]
 trend = os.environ["trend"]
+start_date = os.environ["start_date"]
+sampling_freq = os.environ["sampling_freq"]
+tx_ampl_param = int(os.environ["tx_ampl_param"])
+number_of_days = int(os.environ["number_of_days"])
+time_per_block = int(os.environ["time_per_block"])
+
+# Derived config
+end_date = datetime.strptime(start_date, "%d/%m/%Y") + timedelta(days=number_of_days)
+block_per_time_unit = round(3600 / time_per_block) if sampling_freq == 'H' else round(86400 / time_per_block)
 
 # Trend config
 # arctan
@@ -51,28 +51,39 @@ plot_epoch_per_block = os.environ["plot_epoch_per_block"]
 log_tx_per_time_unit = int(os.environ["log_tx_per_time_unit"])
 log_tx_per_block = int(os.environ["log_tx_per_block"])
 
-# Epochs config
+# Epochs config # TODO : ADD EPOCH CONFIG TO THE .ENV FILE
 # epochs = {1: 1., 2: 1., 3: 1., 4: 1.}
 epochs = {1: 0., 2: 0.3, 3: 0.7, 4: 0.9}
 thresholds = {1: 0.8, 2: 0.2, 3: 0.1}
-# TODO : ADD EPOCH CONFIG TO THE .ENV FILE
 # epochs = {1: 0., 2: 1.}
 # thresholds = {1: 0.5, 2: -10, 3: -10}
 
-# Data source [ "btc" | "eth" | "ark"]
-data_ = "btc"
+# Validator config
+num_of_active_validators = 20
 
-subplots = [plot_tx_per_time_unit,plot_tx_per_block,plot_epoch_per_block].count('True')
+# Plotting settings
+subplots = [plot_tx_per_time_unit, plot_tx_per_block, plot_epoch_per_block].count('True')
 subplots_pos = 1
+
 
 def generate_transactions_per_time_unit():
     # Trend from data
     if trend == 'data':
-        print('Loading {} data from file'.format(data_))
+        print('Loading {} data from file'.format(data_source))
 
-        data_file = 'data/' + data_ + '/n-transactions-all.csv'
-        df = pd.read_csv(data_file, names=['date', 'data'], nrows=number_of_days, skiprows=400)
+        # Load the data from the file
+        data_file = 'data/' + data_source + '/n-transactions-all.csv'
+        df = pd.read_csv(data_file, names=['date', 'data'], nrows=number_of_days)
+
+        # Set type to timestamp
+        df['date'] = pd.to_datetime(df['date'])
+
+        # Drop rows until the start date
+        df.drop(df.index[:len(df.loc[df.date < start_date])], inplace=True)
         df['data'] /= tx_ampl_param
+
+        print("transaction distribution loaded")
+        sys.stdout.flush()
 
     else:
         print('Generating transactions per time unit')
@@ -143,21 +154,21 @@ def set_epochs(transactions_per_block):
 
     # Set epochs
     df_blocks['epoch'] = [-1 for i in range(len(df_blocks))]
-    for i in range(int(len(df_blocks) / 51) + 1):
-        empty_block_ratio = 1 - np.count_nonzero(df_blocks['tx'][i * 51:i * 51 + 51]) / 51
+    for i in range(int(len(df_blocks) / num_of_active_validators) + 1):
+        empty_block_ratio = 1 - np.count_nonzero(df_blocks['tx'][i * num_of_active_validators:i * num_of_active_validators + num_of_active_validators]) / num_of_active_validators
 
         if empty_block_ratio > thresholds[1]:
-            for j in range(51):
-                df_blocks.at[i * 51 + j, 'epoch'] = 1
+            for j in range(num_of_active_validators):
+                df_blocks.at[i * num_of_active_validators + j, 'epoch'] = 1
         if thresholds[2] < empty_block_ratio <= thresholds[1]:
-            for j in range(51):
-                df_blocks.at[i * 51 + j, 'epoch'] = 2
+            for j in range(num_of_active_validators):
+                df_blocks.at[i * num_of_active_validators + j, 'epoch'] = 2
         if thresholds[3] < empty_block_ratio <= thresholds[2]:
-            for j in range(51):
-                df_blocks.at[i * 51 + j, 'epoch'] = 3
+            for j in range(num_of_active_validators):
+                df_blocks.at[i * num_of_active_validators + j, 'epoch'] = 3
         if empty_block_ratio <= thresholds[3]:
-            for j in range(51):
-                df_blocks.at[i * 51 + j, 'epoch'] = 4
+            for j in range(num_of_active_validators):
+                df_blocks.at[i * num_of_active_validators + j, 'epoch'] = 4
 
     # Drop the added lines ( +1)
     df_blocks = df_blocks.dropna(0, how='any')
@@ -188,7 +199,7 @@ def plot_transactions(df, what):
     if what == "tptu":
         plt.subplot(subplots, 1, subplots_pos)
         sns.lineplot(df.index.values, df['data'])
-        plt.xlabel('timestamp (' + sampling_freq + ")")
+        plt.xlabel('time unit (' + sampling_freq + ")")
         plt.ylabel('tx')
         plt.title('Transactions per time unit')
         plt.grid(True)
@@ -214,13 +225,34 @@ def plot_transactions(df, what):
 
     plt.subplots_adjust(hspace=1)
 
-def generate_validators():
-    return dict
+
+def generate_validators(num_of_validators):
+    validators = {}
+    for i in range(num_of_validators):
+        validators['val_' + str(i)] = []
+
+    return validators
 
 
-def distribute_validators(dict_of_validators):
-    return
+def distribute_validators(df_blocks, num_of_validators):
+    validators = generate_validators(num_of_validators)
+    val_rounds = round(len(df_blocks)/num_of_active_validators)
+
+    df_validators = df_blocks.copy()
+
+    # Set validators
+    df_validators['validator'] = ["" for i in range(len(df_blocks))]
+
+    for val_round in range(val_rounds):
+        active_validators_ids = random.sample(list(validators), num_of_active_validators)
+        random.shuffle(active_validators_ids)
+        for j in range(num_of_active_validators):
+            df_validators.at[val_round * num_of_active_validators + j, 'validator'] = active_validators_ids[j]
+
+        # active_validators = [validators[k] for k in active_validators_ids]
+
+    return df_validators
 
 
 def generate_data():
-    set_epochs(generate_blocks(generate_transactions_per_time_unit()))
+    return distribute_validators(set_epochs(generate_blocks(generate_transactions_per_time_unit())),150)
