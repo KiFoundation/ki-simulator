@@ -1,3 +1,4 @@
-from kisimulator.reward.generator import generate_blocks
+from kisimulator.reward.generator import *
 
-res = generate_blocks()
+res = generate_data()
+plt.show()

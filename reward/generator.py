@@ -16,63 +16,67 @@ register_matplotlib_converters()
 load_dotenv()
 
 # Set random stat
-np.random.seed = os.getenv("random_seed")
+np.random.seed = os.environ["random_seed"]
 
 # Data generator config
-start_date = os.getenv("start_date")
-number_of_days = os.getenv("number_of_days")
+start_date = os.environ["start_date"]
+number_of_days = int(os.environ["number_of_days"])
 end_date = datetime.strptime(start_date, "%d/%m/%Y") + timedelta(days=number_of_days)
-time_per_block = os.getenv("time_per_block")
-sampling_freq = os.getenv("")
+time_per_block = int(os.environ["time_per_block"])
+sampling_freq = os.environ["sampling_freq"]
 block_per_time_unit = round(3600 / time_per_block) if sampling_freq == 'H' else round(86400 / time_per_block)
-tx_ampl_param = os.getenv("")
+tx_ampl_param = int(os.environ["tx_ampl_param"])
 # trend = 'arctan'
 # trend = 'linear'
 
 # Trend [ "data" | "gen" ]
-trend = os.getenv("")
+trend = os.environ["trend"]
 
 # Trend config
 # arctan
-amp = os.getenv("amp")
-skw = os.getenv("skw")
-loc = os.getenv("loc")
+amp = float(os.environ["amp"])
+skw = float(os.environ["skw"])
+loc = float(os.environ["loc"])
 
 # linear
-a = os.getenv("a")
-b = os.getenv("b")
+a = os.environ["a"]
+b = os.environ["b"]
 
 # Plotting config
-plot_tx_per_time_unit = os.getenv("plot_tx_per_time_unit")
-plot_tx_per_block = os.getenv("plot_tx_per_block")
-plot_epoch_per_block = os.getenv("plot_epoch_per_block")
+plot_tx_per_time_unit = os.environ["plot_tx_per_time_unit"]
+plot_tx_per_block = os.environ["plot_tx_per_block"]
+plot_epoch_per_block = os.environ["plot_epoch_per_block"]
 
 # Logging config (in-console)
-log_tx_per_time_unit = os.getenv("log_tx_per_time_unit")
-log_tx_per_block = os.getenv("log_tx_per_block")
+log_tx_per_time_unit = int(os.environ["log_tx_per_time_unit"])
+log_tx_per_block = int(os.environ["log_tx_per_block"])
 
 # Epochs config
 # epochs = {1: 1., 2: 1., 3: 1., 4: 1.}
-# epochs = {1: 0., 2: 0.3, 3: 0.7, 4: 0.9}
-# thresholds = {1: 0.8, 2: 0.2, 3: 0.1}
-#  TODO : ADD EPOCH CONFIG TO THE .ENV FILE
-epochs = {1: 0., 2: 1.}
-thresholds = {1: 0.5, 2: -10, 3: -10}
+epochs = {1: 0., 2: 0.3, 3: 0.7, 4: 0.9}
+thresholds = {1: 0.8, 2: 0.2, 3: 0.1}
+# TODO : ADD EPOCH CONFIG TO THE .ENV FILE
+# epochs = {1: 0., 2: 1.}
+# thresholds = {1: 0.5, 2: -10, 3: -10}
 
 # Data source [ "btc" | "eth" | "ark"]
 data_ = "btc"
 
+subplots = [plot_tx_per_time_unit,plot_tx_per_block,plot_epoch_per_block].count('True')
+subplots_pos = 1
 
 def generate_transactions_per_time_unit():
-    print('Generating transactions per time unit : ', sampling_freq)
-
     # Trend from data
     if trend == 'data':
+        print('Loading {} data from file'.format(data_))
+
         data_file = 'data/' + data_ + '/n-transactions-all.csv'
-        df = pd.read_csv(data_file, names=['date', 'data'], nrows=number_of_days, skiprows=0)
+        df = pd.read_csv(data_file, names=['date', 'data'], nrows=number_of_days, skiprows=400)
         df['data'] /= tx_ampl_param
 
     else:
+        print('Generating transactions per time unit')
+
         # Create the timestamps
         date_rng = pd.date_range(start=start_date, end=end_date, freq=sampling_freq)
 
@@ -101,7 +105,7 @@ def generate_transactions_per_time_unit():
     if log_tx_per_time_unit != 0:
         log_transactions(df, log_tx_per_time_unit)
 
-    if plot_tx_per_time_unit :
+    if plot_tx_per_time_unit == "True":
         plot_transactions(df, "tptu")
 
     return df
@@ -122,13 +126,13 @@ def generate_blocks(transactions_per_time_unit):
             df_blocks.loc[k] = tx
             k += 1
 
-    print("transactions distributed over blocks")
+    print("Transactions distributed over blocks")
     sys.stdout.flush()
 
     if log_tx_per_block != 0:
         log_transactions(df_blocks, log_tx_per_block)
 
-    if plot_tx_per_block :
+    if plot_tx_per_block == "True":
         plot_transactions(df_blocks, "tpb")
 
     return df_blocks
@@ -161,7 +165,7 @@ def set_epochs(transactions_per_block):
     print("transaction epochs set")
     sys.stdout.flush()
 
-    if plot_epoch_per_block :
+    if plot_epoch_per_block == "True":
         plot_transactions(df_blocks, "epoch")
 
     return df_blocks
@@ -179,18 +183,36 @@ def log_transactions(df, lines):
 def plot_transactions(df, what):
     # Plotting
     sns.set(style="ticks")
-
-    if what == "epoch":
-        sns.scatterplot(df.index.values, df['epoch'])
+    global subplots_pos
 
     if what == "tptu":
+        plt.subplot(subplots, 1, subplots_pos)
         sns.lineplot(df.index.values, df['data'])
+        plt.xlabel('timestamp (' + sampling_freq + ")")
+        plt.ylabel('tx')
+        plt.title('Transactions per time unit')
+        plt.grid(True)
+        subplots_pos += 1
 
-    if what == "tpb" :
+    if what == "tpb":
+        plt.subplot(subplots, 1, subplots_pos)
         sns.lineplot(df.index.values, df['tx'])
+        plt.xlabel('block')
+        plt.ylabel('tx')
+        plt.title('Transactions per block')
+        plt.grid(True)
+        subplots_pos += 1
 
-    plt.show()
+    if what == "epoch":
+        plt.subplot(subplots, 1, subplots_pos)
+        sns.scatterplot(df.index.values, df['tx'], hue=df['epoch'], legend="full", s=6, linewidth=0.0)
+        plt.xlabel('block')
+        plt.ylabel('tx')
+        plt.title('Transactions per block')
+        plt.grid(True)
+        subplots_pos += 1
 
+    plt.subplots_adjust(hspace=1)
 
 def generate_validators():
     return dict
@@ -199,3 +221,6 @@ def generate_validators():
 def distribute_validators(dict_of_validators):
     return
 
+
+def generate_data():
+    set_epochs(generate_blocks(generate_transactions_per_time_unit()))
