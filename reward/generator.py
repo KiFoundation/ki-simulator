@@ -77,12 +77,11 @@ def generate_transactions_per_time_unit():
 
         # Set type to timestamp
         df['date'] = pd.to_datetime(df['date'])
-        print(df)
 
         # Drop rows until the start date
         df = df.drop(df.index[:len(df.loc[df.date < start_date])]).head(number_of_days)
-        df['data'] /= tx_ampl_param
-        print(df)
+        # df['data'] /= tx_ampl_param
+
         print("transaction distribution loaded")
         sys.stdout.flush()
 
@@ -156,7 +155,8 @@ def set_epochs(transactions_per_block):
     # Set epochs
     df_blocks['epoch'] = [-1 for i in range(len(df_blocks))]
     for i in range(int(len(df_blocks) / num_of_active_validators) + 1):
-        empty_block_ratio = 1 - np.count_nonzero(df_blocks['tx'][i * num_of_active_validators:i * num_of_active_validators + num_of_active_validators]) / num_of_active_validators
+        empty_block_ratio = 1 - np.count_nonzero(df_blocks['tx'][
+                                                 i * num_of_active_validators:i * num_of_active_validators + num_of_active_validators]) / num_of_active_validators
 
         if empty_block_ratio > thresholds[1]:
             for j in range(num_of_active_validators):
@@ -237,7 +237,7 @@ def generate_validators(num_of_validators):
 
 def distribute_validators(df_blocks, num_of_validators):
     validators = generate_validators(num_of_validators)
-    val_rounds = round(len(df_blocks)/num_of_active_validators)
+    val_rounds = round(len(df_blocks) / num_of_active_validators)
 
     df_validators = df_blocks.copy()
 
@@ -257,4 +257,4 @@ def distribute_validators(df_blocks, num_of_validators):
 
 
 def generate_data():
-    return distribute_validators(set_epochs(generate_blocks(generate_transactions_per_time_unit())),150)
+    return distribute_validators(set_epochs(generate_blocks(generate_transactions_per_time_unit())), 150)
