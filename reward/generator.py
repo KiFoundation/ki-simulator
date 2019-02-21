@@ -73,15 +73,16 @@ def generate_transactions_per_time_unit():
 
         # Load the data from the file
         data_file = 'data/' + data_source + '/n-transactions-all.csv'
-        df = pd.read_csv(data_file, names=['date', 'data'], nrows=number_of_days)
+        df = pd.read_csv(data_file, names=['date', 'data'])
 
         # Set type to timestamp
         df['date'] = pd.to_datetime(df['date'])
+        print(df)
 
         # Drop rows until the start date
-        df.drop(df.index[:len(df.loc[df.date < start_date])], inplace=True)
+        df = df.drop(df.index[:len(df.loc[df.date < start_date])]).head(number_of_days)
         df['data'] /= tx_ampl_param
-
+        print(df)
         print("transaction distribution loaded")
         sys.stdout.flush()
 

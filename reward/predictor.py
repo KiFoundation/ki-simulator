@@ -7,13 +7,18 @@ import matplotlib.pyplot as plt
 
 from datetime import datetime
 
+
+def basic_prediction():
+    return
+
+
 def forecasting(df_blocks_):
     df_blocks_['date'] = pd.to_datetime(df_blocks_['date'])
     df_blocks_ = df_blocks_.set_index('date')
     df_blocks_ = df_blocks_['data'].resample('W').mean()
     print(len(df_blocks_))
 
-    decomposition = sm.tsa.seasonal_decompose(df_blocks_, model='multiplicative')
+    decomposition = sm.tsa.seasonal_decompose(df_blocks_, model='additive')
     fig = decomposition.plot()
 
     arima(df_blocks_, False)
@@ -51,8 +56,8 @@ def arima(df_blocks_, param_select):
     pred_ci = pd.DataFrame()
     pred_uc_m = pd.DataFrame()
     mse =[]
-    for i in range(1, 2, 1):
-        mod = sm.tsa.statespace.SARIMAX(df_blocks_[:'201' + str(i) + '-01'], order=a[0],
+    for i in range(1, 5, 1):
+        mod = sm.tsa.statespace.SARIMAX(df_blocks_[:'201' + str(i)], order=a[0],
                                         seasonal_order=a[1],
                                         enforce_stationarity=False, enforce_invertibility=False)
         # Fit the selection model
@@ -71,12 +76,12 @@ def arima(df_blocks_, param_select):
         mse.append(((y_forecasted - y_truth) ** 2).mean())
         # print('The Root Mean Squared Error of our forecasts is {}'.format(round(np.sqrt(mse), 2)))
         #
-        pred_uc = results.get_forecast(steps=50)
+        pred_uc = results.get_forecast(steps=1)
         pred_ci = pd.concat([pred_ci, pred_uc.conf_int()])
         pred_uc_m = pd.concat([pred_uc_m, pred_uc.predicted_mean])
 
     print(mse)
-    pred_uc_m.columns = ['Forecast']
+    pred_uc_m.columns = ['forecast']
     print(pred_ci)
     print(pred_uc_m)
     df_ = pd.DataFrame({'date': df_blocks_['2011':'2018'].index.values,
@@ -84,7 +89,7 @@ def arima(df_blocks_, param_select):
 
     ax = df_.set_index('date').plot()
 
-    pred_uc_m.plot(ax=ax, label='Forecast')
+    pred_uc_m.plot(ax=ax, label='forecast')
     ax.fill_between(pred_ci.index,
                     pred_ci.iloc[:, 0],
                     pred_ci.iloc[:, 1], color='k', alpha=.5)
