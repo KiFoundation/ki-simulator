@@ -1,6 +1,6 @@
-from kisimulator.reward.generator import *
-from kisimulator.reward.rewarder import *
-from kisimulator.reward.predictor import *
+from reward.generator import *
+from reward.rewarder import *
+from reward.predictor import *
 
 res = generate_data()
 # print(res)
