@@ -3,7 +3,7 @@ from kisimulator.reward.rewarder import *
 from kisimulator.reward.predictor import *
 
 res = generate_data()
-print(res)
+# print(res)
 compute_reward_transfer(res, 0.2)
 
 
