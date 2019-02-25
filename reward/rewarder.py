@@ -117,10 +117,10 @@ def compute_reward_transfer(df_blocks_, static_split_):
     theoretical_dynamic_rewards = dc / len(df_blocks_)
 
     # Transferable reward
-    tr_alpha = 0.8
+    tr_alpha = 1.
 
     # Final data structure
-    df_blocks_rewards = pd.DataFrame([[0, 0., 0, 0.] for i in range(len(df_blocks_))], columns=['tx', 'reward', 'epoch', 'reward1'])
+    df_blocks_rewards = pd.DataFrame([[0, 0., 0, 0.] for i in range(len(df_blocks_))], columns=['tx', 'rewardT', 'epoch', 'reward'])
 
     # The filling rate of a block : i.e. nb_of_tx / max_nb_of_tx
     filling_rate = 0
@@ -147,7 +147,7 @@ def compute_reward_transfer(df_blocks_, static_split_):
     for index, row in df_blocks_.iterrows():
 
         # Compute the filling rate
-        filling_rate = row['tx'] / max_tx_per_block
+        filling_rate = min(row['tx'] / max_tx_per_block, 1)
         filling_rate_mean = filling_rate_mean + filling_rate
 
         # Compute the transferable reward : i.e. the reward for the unfilled portion of the block
@@ -172,14 +172,16 @@ def compute_reward_transfer(df_blocks_, static_split_):
         # Fill the result structure
         df_blocks_rewards.iloc[index] = [row['tx'], r_hat, row['epoch'], r_hat1]
 
+    print("The total sum of payed reward (trend) is ", sum(df_blocks_rewards['rewardT']))
     print("The total sum of payed reward is ", sum(df_blocks_rewards['reward']))
+
     plt.subplot(3, 1, 1)
     sns.lineplot(df_blocks_rewards.index.values, df_blocks_rewards['tx'])
 
     plt.subplot(3, 1, 2)
-    sns.lineplot(df_blocks_rewards.index.values, df_blocks_rewards['reward'])
+    sns.lineplot(df_blocks_rewards.index.values, df_blocks_rewards['rewardT'])
 
     plt.subplot(3, 1, 3)
-    sns.lineplot(df_blocks_rewards.index.values, df_blocks_rewards['reward1'])
+    sns.lineplot(df_blocks_rewards.index.values, df_blocks_rewards['reward'])
 
     return df_blocks_rewards

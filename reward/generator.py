@@ -82,7 +82,7 @@ def generate_transactions_per_time_unit():
         df = df.drop(df.index[:len(df.loc[df.date < start_date])]).head(number_of_days)
         df['data'] /= tx_ampl_param
 
-        print("transaction distribution loaded")
+        print("Transaction distribution loaded")
         sys.stdout.flush()
 
     else:
@@ -227,16 +227,31 @@ def plot_transactions(df, what):
     plt.subplots_adjust(hspace=1)
 
 
-def generate_validators(num_of_validators):
+def generate_validators(num_of_validators, validator_stake_dist):
     validators = {}
+    stakes = []
+
+    if validator_stake_dist == 'normal':
+        stakes = abs(np.random.normal(1., 1., num_of_validators))
+        stakes = stakes / max(stakes)
+
+    if validator_stake_dist == 'uniform':
+        stakes = np.random.uniform(0, 1, num_of_validators)
+
+    # stakes = 1000000 * stakes
+
     for i in range(num_of_validators):
-        validators['val_' + str(i)] = []
+        validators['val_' + str(i)] = stakes[i]
+
 
     return validators
 
 
 def distribute_validators(df_blocks, num_of_validators):
-    validators = generate_validators(num_of_validators)
+    validators = generate_validators(num_of_validators, 'uniform')
+    s = sum(list(validators.values()))
+    p = [i / s for i in list(validators.values())]
+    p1 = {val: i / s for (val, i) in validators.items()}
     val_rounds = round(len(df_blocks) / num_of_active_validators)
 
     df_validators = df_blocks.copy()
@@ -245,7 +260,7 @@ def distribute_validators(df_blocks, num_of_validators):
     df_validators['validator'] = ["" for i in range(len(df_blocks))]
 
     for val_round in range(val_rounds):
-        active_validators_ids = random.sample(list(validators), num_of_active_validators)
+        active_validators_ids = np.random.choice(list(validators), num_of_active_validators, p=p)
         random.shuffle(active_validators_ids)
         for j in range(num_of_active_validators):
             df_validators.at[val_round * num_of_active_validators + j, 'validator'] = active_validators_ids[j]
@@ -253,8 +268,22 @@ def distribute_validators(df_blocks, num_of_validators):
     # Drop the added lines ( +1)
     df_validators = df_validators.dropna(0, how='any')
 
-    return df_validators
+    return df_validators, p1
 
 
 def generate_data():
-    return distribute_validators(set_epochs(generate_blocks(generate_transactions_per_time_unit())), 150)
+    data, val = distribute_validators(set_epochs(generate_blocks(generate_transactions_per_time_unit())), 300)
+    a = [[v, p, val[v]] for (v, p) in data['validator'].value_counts(normalize=True).to_dict().items()]
+
+    for ss in a :
+        print(ss)
+
+    plt.subplot(2, 1, 1)
+
+    sns.lineplot([i[0] for i in a], [i[1] for i in a])
+
+    plt.subplot(2, 1, 2)
+
+    sns.lineplot([i[0] for i in a], [i[2] for i in a])
+
+    return data
