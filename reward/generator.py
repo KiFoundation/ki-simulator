@@ -243,7 +243,6 @@ def generate_validators(num_of_validators, validator_stake_dist):
     for i in range(num_of_validators):
         validators['val_' + str(i)] = stakes[i]
 
-
     return validators
 
 
@@ -272,18 +271,18 @@ def distribute_validators(df_blocks, num_of_validators):
 
 
 def generate_data():
-    data, val = distribute_validators(set_epochs(generate_blocks(generate_transactions_per_time_unit())), 300)
-    a = [[v, p, val[v]] for (v, p) in data['validator'].value_counts(normalize=True).to_dict().items()]
+    data, val = distribute_validators(set_epochs(generate_blocks(generate_transactions_per_time_unit())), 1000)
+    a = [[v, p, pow(val[v] - p, 2)] for (v, p) in data['validator'].value_counts(normalize=True).to_dict().items()]
 
-    for ss in a :
-        print(ss)
+    # for ss in a :
+    #     print(ss)
+    #
+    # plt.subplot(2, 1, 1)
+    #
+    # sns.lineplot([i[0] for i in a], [i[1] for i in a])
 
-    plt.subplot(2, 1, 1)
-
-    sns.lineplot([i[0] for i in a], [i[1] for i in a])
-
-    plt.subplot(2, 1, 2)
-
-    sns.lineplot([i[0] for i in a], [i[2] for i in a])
+    # plt.subplot(2, 1, 2)
+    # print(np.sqrt(np.mean([i[2] for i in a])))
+    sns.lineplot([i[0] for i in a], [abs(i[2]) for i in a])
 
     return data

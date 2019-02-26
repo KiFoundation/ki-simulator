@@ -120,7 +120,8 @@ def compute_reward_transfer(df_blocks_, static_split_):
     tr_alpha = 1.
 
     # Final data structure
-    df_blocks_rewards = pd.DataFrame([[0, 0., 0, 0.] for i in range(len(df_blocks_))], columns=['tx', 'rewardT', 'epoch', 'reward'])
+    df_blocks_rewards = pd.DataFrame([[0, 0., 0, 0.] for i in range(len(df_blocks_))],
+                                     columns=['tx', 'rewardT', 'epoch', 'reward'])
 
     # The filling rate of a block : i.e. nb_of_tx / max_nb_of_tx
     filling_rate = 0
@@ -141,10 +142,16 @@ def compute_reward_transfer(df_blocks_, static_split_):
     filling_rate_mean = 0
     transferred_reward1 = []
 
-    print("sc : {}, dc : {}, static_reward : {}, theoretical_dynamic_rewards : {}".format(sc, dc, static_reward, theoretical_dynamic_rewards))
+    print("sc : {}, dc : {}, static_reward : {}, theoretical_dynamic_rewards : {}".format(sc, dc, static_reward,
+                                                                                          theoretical_dynamic_rewards))
 
     # For each block
     for index, row in df_blocks_.iterrows():
+        global max_tx_per_block
+        if index != 0 and index % 144 == 0:
+            # print(np.random.choice(list(df_blocks_[index - 144:index]['tx']), 10), end=' ')
+            max_tx_per_block = 4 * np.median(df_blocks_[index - 72:index]['tx'])
+            # print(max_tx_per_block)
 
         # Compute the filling rate
         filling_rate = min(row['tx'] / max_tx_per_block, 1)
@@ -154,12 +161,13 @@ def compute_reward_transfer(df_blocks_, static_split_):
         transferred_reward = transferred_reward + tr_alpha / len(df_blocks_[index:]) * (
                 1 - filling_rate_prev) * theoretical_dynamic_rewards
 
-        transferred_reward1.append(tr_alpha / len(df_blocks_[index:]) * (1 - filling_rate_prev) * theoretical_dynamic_rewards)
+        transferred_reward1.append(
+            tr_alpha / len(df_blocks_[index:]) * (1 - filling_rate_prev) * theoretical_dynamic_rewards)
 
         # Compute The dynamic reward to pay for the block: sum of the reward for the filled part and transfered reward
-        dynamic_reward = filling_rate  * theoretical_dynamic_rewards + min(transferred_reward, theoretical_dynamic_rewards)
+        dynamic_reward = filling_rate * theoretical_dynamic_rewards + min(transferred_reward, theoretical_dynamic_rewards)
         # print(transferred_reward1[-10:], sum(transferred_reward1[-10:]))
-        dynamic_reward1 = (filling_rate) * (theoretical_dynamic_rewards + min(transferred_reward, theoretical_dynamic_rewards))
+        dynamic_reward1 = filling_rate * (theoretical_dynamic_rewards + min(transferred_reward, theoretical_dynamic_rewards))
 
         # Store variables for the next block
         payed_dynamic_rewards = payed_dynamic_rewards + dynamic_reward

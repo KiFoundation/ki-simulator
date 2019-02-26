@@ -15,7 +15,7 @@ def basic_prediction():
 def forecasting(df_blocks_):
     df_blocks_['date'] = pd.to_datetime(df_blocks_['date'])
     df_blocks_ = df_blocks_.set_index('date')
-    df_blocks_ = df_blocks_['data'].resample('W').mean()
+    df_blocks_ = df_blocks_['tx'].resample('W').mean()
     print(len(df_blocks_))
 
     decomposition = sm.tsa.seasonal_decompose(df_blocks_, model='additive')
