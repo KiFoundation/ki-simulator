@@ -1,6 +1,6 @@
-from reward.generator import *
-from reward.rewarder import *
-from reward.predictor import *
+from reward.src.generator import *
+from reward.src.rewarder import *
+from reward.src.predictor import *
 
 res = generate_data()
 # print(res)
