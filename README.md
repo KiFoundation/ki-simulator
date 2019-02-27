@@ -1,6 +1,6 @@
 # ki-simulator v.0.1
 
-This repository regroup the Python version of the scripts that constitute the Ki Simulator. 
+This repository regroups the Python version of the scripts that constitute the Ki Simulator. 
 
 ## Structure
 The current iteration is structured as follows: 
