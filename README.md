@@ -52,7 +52,7 @@ __The reward calculator__ - _reward/src/rewarder.py_ :
 * Allows the compute the reward based on 4 models : 
     * Transaction based reward
     * Block based reward
-    * Hybrid reward reward
+    * Hybrid reward
     * Transfer based reward (Ki's model)
 
 * Allows to compute the individual reward of each validator based on their validation spots. 
