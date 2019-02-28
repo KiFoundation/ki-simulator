@@ -13,6 +13,10 @@ load_dotenv()
 inflation = float(os.getenv("inflation"))
 base_reward = float(os.getenv("base_reward"))
 max_tx_per_block = float(os.getenv("max_tx_per_block"))
+time_per_block = int(os.environ["time_per_block"])
+total_supply = int(os.environ["total_supply"])
+num_of_blocks_per_time_unit = round(86400 / time_per_block)
+num_of_blocks_per_year = 365 * num_of_blocks_per_time_unit
 
 epochs = {1: 0.7, 2: 0.8, 3: 0.9, 4: 1.}
 thresholds = {1: 0.4, 2: 0.2, 3: 0.0}
@@ -148,9 +152,9 @@ def compute_reward_transfer(df_blocks_, static_split_):
     # For each block
     for index, row in df_blocks_.iterrows():
         global max_tx_per_block
-        if index != 0 and index % 144 == 0:
+        if len(df_blocks_[index:])-1 != 0 and index % 144 == 0:
             # print(np.random.choice(list(df_blocks_[index - 144:index]['tx']), 10), end=' ')
-            max_tx_per_block = 4 * np.median(df_blocks_[index - 72:index]['tx'])
+            max_tx_per_block = 4 * np.median(df_blocks_.loc[index - 72:index]['tx'])
             # print(max_tx_per_block)
 
         # Compute the filling rate
@@ -158,11 +162,11 @@ def compute_reward_transfer(df_blocks_, static_split_):
         filling_rate_mean = filling_rate_mean + filling_rate
 
         # Compute the transferable reward : i.e. the reward for the unfilled portion of the block
-        transferred_reward = transferred_reward + tr_alpha / len(df_blocks_[index:]) * (
+        transferred_reward = transferred_reward + tr_alpha / len(df_blocks_.loc[index:]) * (
                 1 - filling_rate_prev) * theoretical_dynamic_rewards
 
         transferred_reward1.append(
-            tr_alpha / len(df_blocks_[index:]) * (1 - filling_rate_prev) * theoretical_dynamic_rewards)
+            tr_alpha / len(df_blocks_.loc[index:]) * (1 - filling_rate_prev) * theoretical_dynamic_rewards)
 
         # Compute The dynamic reward to pay for the block: sum of the reward for the filled part and transfered reward
         dynamic_reward = filling_rate * theoretical_dynamic_rewards + min(transferred_reward, theoretical_dynamic_rewards)
@@ -178,18 +182,37 @@ def compute_reward_transfer(df_blocks_, static_split_):
         r_hat1 = static_reward + dynamic_reward1
 
         # Fill the result structure
-        df_blocks_rewards.iloc[index] = [row['tx'], r_hat, row['epoch'], r_hat1]
+        df_blocks_rewards.loc[index] = [row['tx'], r_hat, row['epoch'], r_hat1]
 
-    print("The total sum of payed reward (trend) is ", sum(df_blocks_rewards['rewardT']))
-    print("The total sum of payed reward is ", sum(df_blocks_rewards['reward']))
+    print("Objective reward amount to be payed is ", inflation,
+          "\t\t Actual objective inflation rate is :", inflation / total_supply)
 
-    plt.subplot(3, 1, 1)
-    sns.lineplot(df_blocks_rewards.index.values, df_blocks_rewards['tx'])
+    print("The total sum of payed reward (trend) is ", sum(df_blocks_rewards['rewardT']),
+          "\t\t Actual inflation rate is :", sum(df_blocks_rewards['rewardT']) / total_supply)
 
-    plt.subplot(3, 1, 2)
-    sns.lineplot(df_blocks_rewards.index.values, df_blocks_rewards['rewardT'])
+    print("The total sum of payed reward is ", sum(df_blocks_rewards['reward']),
+          "\t\t Actual inflation rate is :", sum(df_blocks_rewards['reward']) / total_supply)
 
-    plt.subplot(3, 1, 3)
-    sns.lineplot(df_blocks_rewards.index.values, df_blocks_rewards['reward'])
+    # plt.subplot(3, 1, 1)
+    # sns.lineplot(df_blocks_rewards.index.values, df_blocks_rewards['tx'])
+    #
+    # plt.subplot(3, 1, 2)
+    # sns.lineplot(df_blocks_rewards.index.values, df_blocks_rewards['rewardT'])
+    #
+    # plt.subplot(3, 1, 3)
+    # sns.lineplot(df_blocks_rewards.index.values, df_blocks_rewards['reward'])
 
     return df_blocks_rewards
+
+
+def compute_reward_transfer_multi_years(df_blocks_, static_split_):
+    results = pd.DataFrame()
+    for i in range(0,int(len(df_blocks_) / num_of_blocks_per_year),1):
+        print("Year" , i + 1)
+
+        results = results.append(compute_reward_transfer(
+            df_blocks_[num_of_blocks_per_year * i: num_of_blocks_per_year * i + num_of_blocks_per_year],
+            static_split_))
+
+    results.to_csv('res/results.csv')
+    sns.lineplot(results.index.values, results['reward'])

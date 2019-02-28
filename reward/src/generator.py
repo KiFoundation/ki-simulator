@@ -80,7 +80,7 @@ def generate_transactions_per_time_unit():
 
         # Drop rows until the start date
         df = df.drop(df.index[:len(df.loc[df.date < start_date])]).head(number_of_days)
-        df['data'] /= tx_ampl_param
+        # df['data'] /= tx_ampl_param
 
         print("Transaction distribution loaded")
         sys.stdout.flush()
