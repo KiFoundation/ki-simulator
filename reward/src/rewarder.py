@@ -126,6 +126,7 @@ def compute_reward_transfer(df_blocks_, static_split_):
     # Final data structure
     df_blocks_rewards = pd.DataFrame([[0, 0., 0, 0.] for i in range(len(df_blocks_))],
                                      columns=['tx', 'rewardT', 'epoch', 'reward'])
+    df_blocks_rewards = df_blocks_rewards.set_index(df_blocks_.index.values)
 
     # The filling rate of a block : i.e. nb_of_tx / max_nb_of_tx
     filling_rate = 0
@@ -152,10 +153,12 @@ def compute_reward_transfer(df_blocks_, static_split_):
     # For each block
     for index, row in df_blocks_.iterrows():
         global max_tx_per_block
-        if len(df_blocks_[index:])-1 != 0 and index % 144 == 0:
-            # print(np.random.choice(list(df_blocks_[index - 144:index]['tx']), 10), end=' ')
-            max_tx_per_block = 4 * np.median(df_blocks_.loc[index - 72:index]['tx'])
-            # print(max_tx_per_block)
+        if len(df_blocks_.loc[index:])-1 != 0 and index % 144 == 0:
+            # max_tx_per_block = max([max(df_blocks_.loc[index - 144:index]['tx']), 1])
+            # max_tx_per_block = 2 * max([max(df_blocks_.loc[index - 144:index]['tx']), 1])
+            # max_tx_per_block = np.mean([max(df_blocks_.loc[index - 144:index]['tx']), 1])
+            # max_tx_per_block = 2 * np.mean([max(df_blocks_.loc[index - 144:index]['tx']), 1])
+            max_tx_per_block = 6000
 
         # Compute the filling rate
         filling_rate = min(row['tx'] / max_tx_per_block, 1)
@@ -207,12 +210,10 @@ def compute_reward_transfer(df_blocks_, static_split_):
 
 def compute_reward_transfer_multi_years(df_blocks_, static_split_):
     results = pd.DataFrame()
-    for i in range(0,int(len(df_blocks_) / num_of_blocks_per_year),1):
-        print("Year" , i + 1)
-
+    for i in range(0, int(len(df_blocks_) / num_of_blocks_per_year), 1):
+        print("Year", i + 1)
         results = results.append(compute_reward_transfer(
-            df_blocks_[num_of_blocks_per_year * i: num_of_blocks_per_year * i + num_of_blocks_per_year],
-            static_split_))
+            df_blocks_[num_of_blocks_per_year * i: num_of_blocks_per_year * i + num_of_blocks_per_year], static_split_))
 
     results.to_csv('res/results.csv')
     sns.lineplot(results.index.values, results['reward'])

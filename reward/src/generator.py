@@ -272,7 +272,7 @@ def distribute_validators(df_blocks, num_of_validators):
 
 def generate_data():
     data, val = distribute_validators(set_epochs(generate_blocks(generate_transactions_per_time_unit())), 1000)
-    a = [[v, p, pow(val[v] - p, 2)] for (v, p) in data['validator'].value_counts(normalize=True).to_dict().items()]
+    # a = [[v, p, pow(val[v] - p, 2)] for (v, p) in data['validator'].value_counts(normalize=True).to_dict().items()]
 
     # for ss in a :
     #     print(ss)
@@ -283,6 +283,6 @@ def generate_data():
 
     # plt.subplot(2, 1, 2)
     # print(np.sqrt(np.mean([i[2] for i in a])))
-    sns.lineplot([i[0] for i in a], [abs(i[2]) for i in a])
+    # sns.lineplot([i[0] for i in a], [abs(i[2]) for i in a])
 
     return data
