@@ -72,7 +72,8 @@ def generate_transactions_per_time_unit():
         print('Loading {} data from file'.format(data_source))
 
         # Load the data from the file
-        data_file = 'data/' + data_source + '/n-transactions-all.csv'
+        data_file = '../data/' + data_source + '/n-transactions-all.csv'
+        print(data_file)
         df = pd.read_csv(data_file, names=['date', 'data'])
 
         # Set type to timestamp

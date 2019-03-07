@@ -107,7 +107,7 @@ def compute_reward_hybrid(df_blocks_, static_split_):
     return df_blocks_rewards
 
 
-def compute_reward_transfer(df_blocks_, static_split_):
+def compute_reward_transfer(df_blocks_, static_split_, i, itt):
     # Static inflation
     sc = static_split_ * inflation
 
@@ -124,8 +124,8 @@ def compute_reward_transfer(df_blocks_, static_split_):
     tr_alpha = 1.
 
     # Final data structure
-    df_blocks_rewards = pd.DataFrame([[0, 0., 0, 0.] for i in range(len(df_blocks_))],
-                                     columns=['tx', 'rewardT', 'epoch', 'reward'])
+    df_blocks_rewards = pd.DataFrame([[0, 0., 0, 0., 0] for i in range(len(df_blocks_))],
+                                     columns=['tx', 'rewardT', 'epoch', 'reward', 'max'])
     df_blocks_rewards = df_blocks_rewards.set_index(df_blocks_.index.values)
 
     # The filling rate of a block : i.e. nb_of_tx / max_nb_of_tx
@@ -149,16 +149,39 @@ def compute_reward_transfer(df_blocks_, static_split_):
 
     print("sc : {}, dc : {}, static_reward : {}, theoretical_dynamic_rewards : {}".format(sc, dc, static_reward,
                                                                                           theoretical_dynamic_rewards))
+    # it = i * len(df_blocks_)
+    it = 0
+    jt = 0
+
+    yearly_jump = 400
+    smoothing_blocks = 9000
 
     # For each block
     for index, row in df_blocks_.iterrows():
         global max_tx_per_block
-        if len(df_blocks_.loc[index:])-1 != 0 and index % 144 == 0:
+
+        if len(df_blocks_.loc[index:]) - 1 != 0 and index % 144 == 0:
             # max_tx_per_block = max([max(df_blocks_.loc[index - 144:index]['tx']), 1])
             # max_tx_per_block = 2 * max([max(df_blocks_.loc[index - 144:index]['tx']), 1])
-            # max_tx_per_block = np.mean([max(df_blocks_.loc[index - 144:index]['tx']), 1])
-            # max_tx_per_block = 2 * np.mean([max(df_blocks_.loc[index - 144:index]['tx']), 1])
-            max_tx_per_block = 6000
+            # max_tx_per_block = 30 * np.mean([max(df_blocks_.loc[index - 144:index]['tx']), 1])
+            # max_tx_per_block = 4 * np.mean([max(df_blocks_.loc[index - 144:index]['tx']), 1])
+            # max_tx_per_block = 6000
+            it += 1
+            # max_tx_per_block = itt + (0.02 + 0.2 * i) * it
+            # max_tx_per_block = itt + 200 * i
+
+            if len(df_blocks_.loc[:index]) <= smoothing_blocks:
+                max_tx_per_block = yearly_jump * (i + 1 / (1 + np.exp(-0.1 * it)))
+                jt += 1
+
+            if smoothing_blocks < len(df_blocks_.loc[:index]) < len(df_blocks_) - smoothing_blocks:
+                max_tx_per_block = yearly_jump * (i + 1)
+                jt += 1
+
+            if len(df_blocks_) - smoothing_blocks <= len(df_blocks_.loc[:index]):
+                max_tx_per_block = yearly_jump * (1 + i + 1 / (1 + np.exp(-0.1 * (it - 365))))
+
+            # print(itt)
 
         # Compute the filling rate
         filling_rate = min(row['tx'] / max_tx_per_block, 1)
@@ -172,9 +195,11 @@ def compute_reward_transfer(df_blocks_, static_split_):
             tr_alpha / len(df_blocks_.loc[index:]) * (1 - filling_rate_prev) * theoretical_dynamic_rewards)
 
         # Compute The dynamic reward to pay for the block: sum of the reward for the filled part and transfered reward
-        dynamic_reward = filling_rate * theoretical_dynamic_rewards + min(transferred_reward, theoretical_dynamic_rewards)
+        dynamic_reward = filling_rate * theoretical_dynamic_rewards + min(transferred_reward,
+                                                                          theoretical_dynamic_rewards)
         # print(transferred_reward1[-10:], sum(transferred_reward1[-10:]))
-        dynamic_reward1 = filling_rate * (theoretical_dynamic_rewards + min(transferred_reward, theoretical_dynamic_rewards))
+        dynamic_reward1 = filling_rate * (
+                theoretical_dynamic_rewards + min(transferred_reward, theoretical_dynamic_rewards))
 
         # Store variables for the next block
         payed_dynamic_rewards = payed_dynamic_rewards + dynamic_reward
@@ -185,8 +210,9 @@ def compute_reward_transfer(df_blocks_, static_split_):
         r_hat1 = static_reward + dynamic_reward1
 
         # Fill the result structure
-        df_blocks_rewards.loc[index] = [row['tx'], r_hat, row['epoch'], r_hat1]
+        df_blocks_rewards.loc[index] = [row['tx'], r_hat, row['epoch'], r_hat1, max_tx_per_block]
 
+    print(jt)
     print("Objective reward amount to be payed is ", inflation,
           "\t\t Actual objective inflation rate is :", inflation / total_supply)
 
@@ -205,15 +231,27 @@ def compute_reward_transfer(df_blocks_, static_split_):
     # plt.subplot(3, 1, 3)
     # sns.lineplot(df_blocks_rewards.index.values, df_blocks_rewards['reward'])
 
-    return df_blocks_rewards
+    return df_blocks_rewards, max_tx_per_block
 
 
 def compute_reward_transfer_multi_years(df_blocks_, static_split_):
     results = pd.DataFrame()
+    itt = 100
     for i in range(0, int(len(df_blocks_) / num_of_blocks_per_year), 1):
         print("Year", i + 1)
-        results = results.append(compute_reward_transfer(
-            df_blocks_[num_of_blocks_per_year * i: num_of_blocks_per_year * i + num_of_blocks_per_year], static_split_))
+        res, itt = compute_reward_transfer(
+            df_blocks_[num_of_blocks_per_year * i: num_of_blocks_per_year * i + num_of_blocks_per_year], static_split_,
+            i, itt)
+        print(itt)
+        results = results.append(res)
 
-    results.to_csv('res/results.csv')
+    results.to_csv('../res/results.csv')
+
+    plt.subplot(3, 1, 1)
+    sns.lineplot(results.index.values, results['tx'])
+
+    plt.subplot(3, 1, 2)
     sns.lineplot(results.index.values, results['reward'])
+
+    plt.subplot(3, 1, 3)
+    sns.lineplot(results.index.values, results['max'])
