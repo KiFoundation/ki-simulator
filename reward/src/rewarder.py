@@ -18,6 +18,7 @@ time_per_block = int(os.environ["time_per_block"])
 total_supply = int(os.environ["total_supply"])
 num_of_blocks_per_time_unit = round(86400 / time_per_block)
 num_of_blocks_per_year = 365 * num_of_blocks_per_time_unit
+max_predictor = os.environ["max_predictor"]
 
 epochs = {1: 0.7, 2: 0.8, 3: 0.9, 4: 1.}
 thresholds = {1: 0.4, 2: 0.2, 3: 0.0}
@@ -160,27 +161,44 @@ def compute_reward_transfer(df_blocks_, static_split_, i, itt):
     # For each block
     for index, row in df_blocks_.iterrows():
         global max_tx_per_block
-
+        
         if len(df_blocks_.loc[index:]) - 1 != 0 and index % 144 == 0:
-            # max_tx_per_block = max([max(df_blocks_.loc[index - 144:index]['tx']), 1])
-            # max_tx_per_block = 2 * max([max(df_blocks_.loc[index - 144:index]['tx']), 1])
-            # max_tx_per_block = 30 * np.mean([max(df_blocks_.loc[index - 144:index]['tx']), 1])
-            # max_tx_per_block = 4 * np.mean([max(df_blocks_.loc[index - 144:index]['tx']), 1])
-            # max_tx_per_block = 6000
             it += 1
-            # max_tx_per_block = itt + (0.02 + 0.2 * i) * it
-            max_tx_per_block = itt + 200 * i
 
-            # if len(df_blocks_.loc[:index]) <= smoothing_blocks:
-            #     max_tx_per_block = yearly_jump * (i + 1 / (1 + np.exp(-0.1 * it)))
-            #     jt += 1
-            #
-            # if smoothing_blocks < len(df_blocks_.loc[:index]) < len(df_blocks_) - smoothing_blocks:
-            #     max_tx_per_block = yearly_jump * (i + 1)
-            #     jt += 1
-            #
-            # if len(df_blocks_) - smoothing_blocks <= len(df_blocks_.loc[:index]):
-            #     max_tx_per_block = yearly_jump * (1 + i + 1 / (1 + np.exp(-0.1 * (it - 365))))
+            # Static max
+            if max_predictor == 'static':
+                max_tx_per_block = 6000
+
+            # Max prediction with amplifying factor amp_max
+            if max_predictor == 'max':
+                amp_max = 2
+                max_tx_per_block = amp_max * max([max(df_blocks_.loc[index - 144:index]['tx']), 1])
+
+            # Mean prediction with amplifying factor amp_mean
+            if max_predictor == 'mean':
+                amp_mean = 4
+                max_tx_per_block = amp_mean * np.mean([max(df_blocks_.loc[index - 144:index]['tx']), 1])
+
+            # Linear annual growth with yearly slop adjustment
+            if max_predictor == 'lin-adj':
+                max_tx_per_block = itt + (0.02 + 0.2 * i) * it
+
+            # Steps
+            if max_predictor == 'steps':
+                max_tx_per_block = itt + 200 * i
+
+            # Steps with smoothing
+            if max_predictor == 'step-sm':
+                if len(df_blocks_.loc[:index]) <= smoothing_blocks:
+                    max_tx_per_block = yearly_jump * (i + 1 / (1 + np.exp(-0.1 * it)))
+                    jt += 1
+
+                if smoothing_blocks < len(df_blocks_.loc[:index]) < len(df_blocks_) - smoothing_blocks:
+                    max_tx_per_block = yearly_jump * (i + 1)
+                    jt += 1
+
+                if len(df_blocks_) - smoothing_blocks <= len(df_blocks_.loc[:index]):
+                    max_tx_per_block = yearly_jump * (1 + i + 1 / (1 + np.exp(-0.1 * (it - 365))))
 
             # print(itt)
 
