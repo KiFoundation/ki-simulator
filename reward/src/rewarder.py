@@ -1,4 +1,5 @@
 import os
+import datetime
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -168,18 +169,18 @@ def compute_reward_transfer(df_blocks_, static_split_, i, itt):
             # max_tx_per_block = 6000
             it += 1
             # max_tx_per_block = itt + (0.02 + 0.2 * i) * it
-            # max_tx_per_block = itt + 200 * i
+            max_tx_per_block = itt + 200 * i
 
-            if len(df_blocks_.loc[:index]) <= smoothing_blocks:
-                max_tx_per_block = yearly_jump * (i + 1 / (1 + np.exp(-0.1 * it)))
-                jt += 1
-
-            if smoothing_blocks < len(df_blocks_.loc[:index]) < len(df_blocks_) - smoothing_blocks:
-                max_tx_per_block = yearly_jump * (i + 1)
-                jt += 1
-
-            if len(df_blocks_) - smoothing_blocks <= len(df_blocks_.loc[:index]):
-                max_tx_per_block = yearly_jump * (1 + i + 1 / (1 + np.exp(-0.1 * (it - 365))))
+            # if len(df_blocks_.loc[:index]) <= smoothing_blocks:
+            #     max_tx_per_block = yearly_jump * (i + 1 / (1 + np.exp(-0.1 * it)))
+            #     jt += 1
+            #
+            # if smoothing_blocks < len(df_blocks_.loc[:index]) < len(df_blocks_) - smoothing_blocks:
+            #     max_tx_per_block = yearly_jump * (i + 1)
+            #     jt += 1
+            #
+            # if len(df_blocks_) - smoothing_blocks <= len(df_blocks_.loc[:index]):
+            #     max_tx_per_block = yearly_jump * (1 + i + 1 / (1 + np.exp(-0.1 * (it - 365))))
 
             # print(itt)
 
@@ -245,7 +246,9 @@ def compute_reward_transfer_multi_years(df_blocks_, static_split_):
         print(itt)
         results = results.append(res)
 
-    results.to_csv('../res/results.csv')
+    this_file = os.path.abspath(os.path.dirname(__file__))
+    res_file = os.path.join(this_file, '../res/results' + str(datetime.date.today()) + '.csv')
+    results.to_csv(res_file)
 
     plt.subplot(3, 1, 1)
     sns.lineplot(results.index.values, results['tx'])
