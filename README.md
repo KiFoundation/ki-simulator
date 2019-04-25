@@ -18,7 +18,8 @@ The current iteration is structured as follows:
 |    |   |
 |    |   |--src : the simulation scripts
 |    |   
-|    |--reputation the PoR simulator 
+|    |--reputation : the PoR simulator
+|    |--election : the random selection function simulator
 |
 |--README.md : this readme 
 
@@ -67,4 +68,3 @@ __The configuration file__ - _reward/.env_
 
 ## PoR simulator
 coming soon...
-
