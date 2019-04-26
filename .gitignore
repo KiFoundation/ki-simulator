@@ -1,2 +1,9 @@
 reward/__pycache__/*
+election/__pycache__/*
+utils/__pycache__/*
+reward/src/__pycache__/*
+election/src/__pycache__/*
+utils/src/__pycache__/*
+reward/res/*
+election/res/*
 .idea/*
